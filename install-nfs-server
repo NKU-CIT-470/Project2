@@ -1,0 +1,54 @@
+#!/bin/bash
+#Start help section
+Help()
+{ echo "This script is used to install NFS onto your server" && echo "     h prints this help message" 
+}
+while getopts ":h" option; do 
+	case $option in
+		h) 
+			Help 
+			exit;; 
+	esac 
+done
+#End help section
+#Start moving user files and installation
+echo "Moving home directory" && echo "Moving home directory" >> /root/NFS/Install-Log
+cp -R /home /tmp
+#checking to see if there is a /home directory currently mounted
+umount /home
+#Adding export entry
+echo "Adding export entry to /etc/exports" && echo "Adding export entry to /etc/exports" >> /root/NFS-Install-Log
+echo "/home 10.2.6.1/23(rw)" >> /etc/exports
+echo "Creating new home partition" && echo "Creating new home partition" >> /root/NFS-Install-Log && echo "/dev/sda4 /home xfs defaults 0 0" >> /etc/fstab && echo "Creating new partition" && echo "Creating new partition" >> /root/NFS-Install-Log
+#Creating /dev/sda4 partition
+sudo fdisk /dev/sda <<EEOF
+n
+p
+
+
+
+w
+EEOF
+echo "Formating new partition and repairing" && echo "Formating new partition and repaiting" >> /root/NFS-Install-Log
+#Ensuring /dev/sda4 has the correct filesystem setup
+mkfs.xfs /dev/sda4
+xfs_repair /dev/sda4
+echo "Mounting home partition" && echo "Mounting home partition" >> /root/NFS-Install-Log
+#Remounting /home
+mount /home
+echo "Moving home directory back to appropriate location" && echo "Moving home directory back to appropriate location" >> /root/NFS-Install-Log
+#Moving old users back to new nfs home directory and reassigning ownership to their files
+cp -R /tmp/home/* /home
+chown -R williamsr34:williamsr34 /home/williamsr34
+chown -R jonesd:jonesd /home/jonesd
+chown -R replogler2:replogler2 /home/replogler2
+#Installing NFS requirements and making it enabled on startup
+echo "Installing NFS requirements and making it start on reboot as well as start after initial install" && echo "Installing NFS requirements and making it start on reboot as well as start after initial install" >> /root/NFS-Install-Log
+yum -y install nfs-utils rpcbind && sudo systemctl enable nfs nfslock rpcbind && sudo systemctl start nfs nfslock rpcbind
+echo "Configuring and rebooting firewall" && echo "Configuring and rebooting firewall" >> /root/NFS-Install-Log
+#Creating firewall rules and restarting the firewall
+sudo firewall-cmd --zone=public --permanent --add-port=2049/tcp && sudo firewall-cmd --zone=public --permanent --add-port=2049/udp && sudo firewall-cmd --zone=public --permanent --add-port=111/tcp && sudo firewall-cmd --zone=public --permanent --add-port=111/udp && sudo firewall-cmd --zone=public --permanent --add-port=20048/tcp && sudo firewall-cmd --zone=public --permanent --add-port=20048/udp && firewall-cmd --reload
+echo "NFS installation complete!" && echo "NFS installation complete!" >> /root/NFS-Install-Log
+echo "System rebooting in 10 seconds" && echo "System rebooting in 10 seconds" >> /root/NFS-Install-Log
+#Rebooting the server to ensure partitioning is correct
+sleep 10 && shutdown -r 0
